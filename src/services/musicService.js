@@ -8,6 +8,7 @@ const wait = (milliseconds = 250) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 let followedArtistsCache = null;
+let followedArtistsPromise = null;
 const albumsByArtistCache = new Map();
 const artworkUrlCache = new Map();
 
@@ -62,7 +63,21 @@ function filterAlbums(albums, settings) {
   });
 }
 
-async function tidalFetch(path) {
+function getRetryDelay(response, attempt) {
+  const retryAfter = response.headers.get('Retry-After');
+
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds)) return seconds * 1000;
+
+    const retryAt = Date.parse(retryAfter);
+    if (Number.isFinite(retryAt)) return Math.max(0, retryAt - Date.now());
+  }
+
+  return Math.min(1000 * 2 ** attempt, 30_000) + Math.random() * 250;
+}
+
+async function tidalFetch(path, attempt = 0) {
   const token = await getAccessToken();
   const url = path.startsWith('http') ? path : `${API_ROOT}${path}`;
   const response = await fetch(url, {
@@ -71,6 +86,11 @@ async function tidalFetch(path) {
       Accept: 'application/vnd.api+json',
     },
   });
+
+  if (response.status === 429 && attempt < 5) {
+    await wait(getRetryDelay(response, attempt));
+    return tidalFetch(path, attempt + 1);
+  }
 
   if (!response.ok) {
     const body = await response.text();
@@ -99,23 +119,50 @@ function normalizeFollowedArtistsPage(page) {
   });
 }
 
-async function getFollowedArtistPages(url = null, onProgress = null, pageNumber = 1) {
+async function getFollowedArtistPages(
+  url = null,
+  onProgress = null,
+  pageNumber = 1,
+  loadedCount = 0,
+) {
   const requestUrl =
     url ??
     '/userCollectionArtists/me/relationships/items?countryCode=US&include=items';
   const page = await tidalFetch(requestUrl);
-  onProgress?.({ pageNumber, loaded: pageNumber * page.data.length });
+  const nextLoadedCount = loadedCount + page.data.length;
+  onProgress?.({ pageNumber, loaded: nextLoadedCount });
   const nextUrl = page.links?.next;
-  return nextUrl
-    ? [page, ...(await getFollowedArtistPages(nextUrl, onProgress, pageNumber + 1))]
-    : [page];
+
+  if (!nextUrl) return [page];
+
+  // Keep cursor pagination sequential and avoid hammering the API.
+  await wait(250);
+  return [
+    page,
+    ...(await getFollowedArtistPages(
+      nextUrl,
+      onProgress,
+      pageNumber + 1,
+      nextLoadedCount,
+    )),
+  ];
 }
 
 export async function loadFollowedArtists(onProgress = null, force = false) {
   if (followedArtistsCache && !force) return followedArtistsCache;
-  const pages = await getFollowedArtistPages(null, onProgress);
-  followedArtistsCache = pages.flatMap(normalizeFollowedArtistsPage);
-  return followedArtistsCache;
+  if (followedArtistsPromise && !force) return followedArtistsPromise;
+
+  followedArtistsPromise = getFollowedArtistPages(null, onProgress)
+    .then((pages) => {
+      followedArtistsCache = pages.flatMap(normalizeFollowedArtistsPage);
+      return followedArtistsCache;
+    })
+    .catch((error) => {
+      followedArtistsPromise = null;
+      throw error;
+    });
+
+  return followedArtistsPromise;
 }
 
 async function getArtworkUrl(artworkId, preferredWidth = 640) {
@@ -262,6 +309,7 @@ export function clearSelectionCache() {
 
 export function clearTidalDataCache() {
   followedArtistsCache = null;
+  followedArtistsPromise = null;
   albumsByArtistCache.clear();
   artworkUrlCache.clear();
 }

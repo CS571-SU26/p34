@@ -31,3 +31,10 @@ The production callback is `https://cs571-su26.github.io/p34/`.
 - Artist albums and artwork are fetched only after the relevant artist or album is selected.
 - The live filter uses a whole-word `/\blive\b/i` title heuristic, so titles containing `alive` are retained.
 - TIDAL-only controls are hidden while the app is using mock data.
+
+## Reliability notes
+
+- The followed-artist load is deduplicated with one shared promise, so React Strict Mode does not start two pagination chains.
+- Cursor requests are paced and `429 Too Many Requests` responses honor TIDAL's `Retry-After` header with bounded retries.
+- The deployment workflow pins npm 10.9.2 and uses current Node-24-based GitHub actions while running the project on Node 22.
+- The UI states that the app requests only read-only library access and playback-related TIDAL permissions.

@@ -24,6 +24,11 @@ export default function HomeView({
       </section>
 
       {tidalLocked && <Alert variant="info">Log in to search and shuffle your followed TIDAL artists.</Alert>}
+      {dataSource === 'tidal' && (
+        <p className="permission-note">
+          Tidal Wave requests only read-only access to your TIDAL library and playback-related permissions.
+        </p>
+      )}
       {loadingMessage && (
         <Alert variant="secondary" className="d-flex align-items-center gap-2" aria-live="polite">
           <Spinner size="sm" /> {loadingMessage}
