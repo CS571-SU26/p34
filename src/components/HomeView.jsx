@@ -12,8 +12,10 @@ export default function HomeView({
   error,
   dataSource,
   authenticated,
+  artistsLoading,
 }) {
   const tidalLocked = dataSource === 'tidal' && !authenticated;
+  const controlsDisabled = busy || tidalLocked || artistsLoading;
 
   return (
     <main className="page-shell">
@@ -54,9 +56,9 @@ export default function HomeView({
                   aria-autocomplete="list"
                   aria-expanded={suggestions.length > 0}
                   aria-controls="artist-suggestions"
-                  disabled={tidalLocked}
+                  disabled={controlsDisabled}
                 />
-                <Button type="submit" disabled={busy || tidalLocked || !query.trim()}>
+                <Button type="submit" disabled={controlsDisabled || !query.trim()}>
                   {busy ? <Spinner size="sm" /> : 'Go'}
                 </Button>
               </InputGroup>
@@ -89,7 +91,7 @@ export default function HomeView({
         size="lg"
         variant="dark"
         onClick={onSurprise}
-        disabled={busy || tidalLocked}
+        disabled={controlsDisabled}
       >
         {busy ? 'Choosing…' : 'Surprise me'}
       </Button>

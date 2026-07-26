@@ -49,6 +49,7 @@ export default function App() {
   const [authBusy, setAuthBusy] = useState(false);
   const [authenticated, setAuthenticated] = useState(isAuthenticated);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [artistsLoading, setArtistsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const usingTidal = settings.dataSource === 'tidal';
@@ -88,6 +89,7 @@ export default function App() {
   useEffect(() => {
     if (!usingTidal || !authenticated) return;
     let active = true;
+    setArtistsLoading(true);
     setLoadingMessage('Loading your followed artists…');
     loadFollowedArtists(({ loaded }) => {
       if (active) setLoadingMessage(`Loading your followed artists… ${loaded} loaded`);
@@ -97,7 +99,12 @@ export default function App() {
         window.setTimeout(() => active && setLoadingMessage(''), 1600);
       })
       .catch((loadError) => active && setError(loadError.message))
-      .finally(() => active && window.setTimeout(() => setLoadingMessage(''), 1600));
+      .finally(() => {
+        if (active) {
+          setArtistsLoading(false);
+          window.setTimeout(() => setLoadingMessage(''), 1600);
+        }
+      });
     return () => { active = false; };
   }, [usingTidal, authenticated]);
 
@@ -246,6 +253,7 @@ export default function App() {
           error={error}
           dataSource={settings.dataSource}
           authenticated={authenticated}
+          artistsLoading={artistsLoading}
         />
       )}
 

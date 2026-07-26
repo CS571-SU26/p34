@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title desc">
+  <title id="title">Artwork unavailable</title>
+  <desc id="desc">A neutral placeholder used while TIDAL artwork is unavailable.</desc>
+  <rect width="800" height="800" fill="#202428"/>
+  <path d="M160 525c85-115 155-165 240-165s155 50 240 165" fill="none" stroke="#737b84" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="400" cy="275" r="88" fill="#4a5158"/>
+  <text x="400" y="690" text-anchor="middle" fill="#c8cdd2" font-family="system-ui, sans-serif" font-size="42" font-weight="600">TIDAL artwork unavailable</text>
+</svg>

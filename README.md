@@ -38,3 +38,8 @@ The production callback is `https://cs571-su26.github.io/p34/`.
 - Cursor requests are paced and `429 Too Many Requests` responses honor TIDAL's `Retry-After` header with bounded retries.
 - The deployment workflow pins npm 10.9.2 and uses current Node-24-based GitHub actions while running the project on Node 22.
 - The UI states that the app requests only read-only library access and playback-related TIDAL permissions.
+
+
+## Package manager
+
+The GitHub Pages workflow uses pnpm to avoid an npm CLI crash observed on GitHub-hosted runners.

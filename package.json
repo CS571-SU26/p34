@@ -17,5 +17,6 @@
   },
   "devDependencies": {
     "vite": "latest"
-  }
+  },
+  "packageManager": "pnpm@10.13.1"
 }

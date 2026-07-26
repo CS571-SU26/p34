@@ -3,7 +3,7 @@ import { getAccessToken } from './authService.js';
 
 const API_ROOT = 'https://openapi.tidal.com/v2';
 const CACHE_KEY = 'tidal-wave-round-robin-v1';
-const PLACEHOLDER_ART = `${import.meta.env.BASE_URL}covers/artist-mosaic.svg`;
+const PLACEHOLDER_ART = `${import.meta.env.BASE_URL}covers/tidal-placeholder.svg`;
 const wait = (milliseconds = 250) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
@@ -57,7 +57,11 @@ function isLiveTitle(title) {
 
 function filterAlbums(albums, settings) {
   return albums.filter((album) => {
-    if (!settings.includeEps && album.type === 'ep') return false;
+    // Singles are never eligible. TIDAL identifies them explicitly in both
+    // attributes.type and attributes.albumType; normalizeAlbum maps that to album.type.
+    if (album.type === 'single') return false;
+    if (album.type === 'ep' && !settings.includeEps) return false;
+    if (!['album', 'ep'].includes(album.type)) return false;
     if (!settings.includeLiveAlbums && isLiveTitle(album.title)) return false;
     return true;
   });
@@ -169,7 +173,7 @@ async function getArtworkUrl(artworkId, preferredWidth = 640) {
   if (!artworkId) return PLACEHOLDER_ART;
   if (artworkUrlCache.has(artworkId)) return artworkUrlCache.get(artworkId);
 
-  const response = await tidalFetch(`/artworks/${artworkId}`);
+  const response = await tidalFetch(`/artworks/${artworkId}?countryCode=US`);
   const files = response.data?.attributes?.files ?? [];
   const selected =
     files.find((file) => file.meta?.width === preferredWidth) ??
