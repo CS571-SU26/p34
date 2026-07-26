@@ -23,6 +23,21 @@ The repository includes `.github/workflows/deploy.yml`. It builds and deploys af
 
 The production callback is `https://cs571-su26.github.io/p34/`.
 
+## npm deployment diagnostics
+
+The workflow stays on npm and temporarily pins Node `22.4.1` while diagnosing the npm CLI error `Exit handler never called!`. npm dependency caching is disabled so a stale or malformed cache cannot affect the install.
+
+If deployment fails again:
+
+1. Open the repository on GitHub and select **Actions**.
+2. Open the failed **Deploy Tidal Wave to GitHub Pages** run.
+3. Select the **deploy** job.
+4. Expand **Install dependencies** and note the first error above `Exit handler never called!`.
+5. Expand **Print npm debug log on install failure**. Copy the section between `BEGIN` and `END`, especially the final 50–100 lines.
+6. Also copy the output from **Show tool versions**.
+
+The debug-log step runs automatically after an install failure, so the underlying npm stack trace should be visible in the same workflow run rather than only in an inaccessible runner file.
+
 ## Current TIDAL flow
 
 - OAuth Authorization Code with PKCE.
@@ -36,10 +51,5 @@ The production callback is `https://cs571-su26.github.io/p34/`.
 
 - The followed-artist load is deduplicated with one shared promise, so React Strict Mode does not start two pagination chains.
 - Cursor requests are paced and `429 Too Many Requests` responses honor TIDAL's `Retry-After` header with bounded retries.
-- The deployment workflow pins npm 10.9.2 and uses current Node-24-based GitHub actions while running the project on Node 22.
+- The deployment workflow uses npm, pins an exact Node version, disables package-manager caching, and prints npm's debug log after an install failure.
 - The UI states that the app requests only read-only library access and playback-related TIDAL permissions.
-
-
-## Package manager
-
-The GitHub Pages workflow uses pnpm to avoid an npm CLI crash observed on GitHub-hosted runners.
