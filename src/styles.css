@@ -1,151 +1,53 @@
 :root {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #161616;
-  background: #f5f5f2;
+  --page-bg: #f5f5f2;
+  --header-bg: rgba(255, 255, 255, 0.96);
+  --muted: #5f6368;
+  --divider: #d5d5d0;
+  --anchor-bg: rgba(255, 255, 255, 0.45);
+  --anchor-border: #a0a09a;
+}
+
+:root[data-theme='dark'] {
+  --page-bg: #111315;
+  --header-bg: rgba(20, 22, 24, 0.96);
+  --muted: #a9adb2;
+  --divider: #3b3f43;
+  --anchor-bg: rgba(255, 255, 255, 0.04);
+  --anchor-border: #5f656b;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #f5f5f2;
+  background: var(--page-bg);
+  transition: background-color 150ms ease;
 }
 
-button,
-input {
-  font: inherit;
-}
-
-.app-root {
-  min-height: 100vh;
-}
-
-.app-header {
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(10px);
-}
-
-.brand-button {
-  border: 0;
-  background: transparent;
-  font-weight: 750;
-  letter-spacing: -0.03em;
-}
-
-.page-shell {
-  width: min(100% - 2rem, 960px);
-  margin: 0 auto;
-  padding: clamp(2.5rem, 7vw, 5rem) 0;
-}
-
-.intro-copy {
-  max-width: 720px;
-  margin-bottom: 2rem;
-}
-
-.intro-copy h1 {
-  font-size: clamp(2.2rem, 6vw, 4.7rem);
-  line-height: 0.98;
-  letter-spacing: -0.055em;
-}
-
-.intro-copy p:last-child {
-  max-width: 640px;
-  color: #5f6368;
-  font-size: 1.1rem;
-}
-
-.eyebrow {
-  margin-bottom: 0.75rem;
-  color: #5f6368;
-  font-size: 0.78rem;
-  font-weight: 750;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.action-card {
-  max-width: 680px;
-  border: 0;
-}
-
-.or-divider {
-  display: flex;
-  align-items: center;
-  max-width: 680px;
-  margin: 1.5rem 0;
-  color: #777;
-}
-
-.or-divider::before,
-.or-divider::after {
-  flex: 1;
-  height: 1px;
-  background: #d5d5d0;
-  content: '';
-}
-
-.or-divider span {
-  padding: 0 1rem;
-}
-
-.surprise-button {
-  width: min(100%, 680px);
-  min-height: 5.5rem;
-  font-size: 1.35rem;
-}
-
-.reveal-card {
-  max-width: 720px;
-  border: 0;
-}
-
-.artist-image {
-  width: 100%;
-  aspect-ratio: 16 / 8;
-  object-fit: cover;
-  background: #deded9;
-}
-
-.album-layout {
-  display: grid;
-  grid-template-columns: minmax(240px, 360px) minmax(0, 1fr);
-  gap: clamp(2rem, 6vw, 5rem);
-  align-items: start;
-}
-
-.album-art {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  background: #deded9;
-  border-radius: 0.35rem;
-}
-
-.future-anchor {
-  padding: 1rem 1.25rem;
-  border: 1px dashed #a0a09a;
-  border-radius: 0.5rem;
-  color: #60605b;
-  background: rgba(255, 255, 255, 0.45);
-}
+button, input { font: inherit; }
+.app-root { min-height: 100vh; }
+.app-header { background: var(--header-bg); backdrop-filter: blur(10px); }
+.brand-button { border: 0; background: transparent; color: inherit; font-weight: 750; letter-spacing: -0.03em; }
+.page-shell { width: min(100% - 2rem, 960px); margin: 0 auto; padding: clamp(2.5rem, 7vw, 5rem) 0; }
+.intro-copy { max-width: 720px; margin-bottom: 2rem; }
+.intro-copy h1 { font-size: clamp(2.2rem, 6vw, 4.7rem); line-height: 0.98; letter-spacing: -0.055em; }
+.intro-copy p:last-child { max-width: 640px; color: var(--muted); font-size: 1.1rem; }
+.eyebrow { margin-bottom: 0.75rem; color: var(--muted); font-size: 0.78rem; font-weight: 750; letter-spacing: 0.1em; text-transform: uppercase; }
+.action-card { max-width: 680px; border: 0; }
+.or-divider { display: flex; align-items: center; max-width: 680px; margin: 1.5rem 0; color: var(--muted); }
+.or-divider::before, .or-divider::after { flex: 1; height: 1px; background: var(--divider); content: ''; }
+.or-divider span { padding: 0 1rem; }
+.surprise-button { width: min(100%, 680px); min-height: 5.5rem; font-size: 1.35rem; }
+.reveal-card { max-width: 720px; border: 0; }
+.artist-image { width: 100%; aspect-ratio: 16 / 8; object-fit: cover; background: #303438; }
+.album-layout { display: grid; grid-template-columns: minmax(240px, 360px) minmax(0, 1fr); gap: clamp(2rem, 6vw, 5rem); align-items: start; }
+.album-art { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #303438; border-radius: 0.35rem; }
+.future-anchor { padding: 1rem 1.25rem; border: 1px dashed var(--anchor-border); border-radius: 0.5rem; color: var(--muted); background: var(--anchor-bg); }
 
 @media (max-width: 720px) {
-  .app-header .container {
-    align-items: flex-start;
-  }
-
-  .app-header .d-flex {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  .album-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .album-art {
-    max-width: 520px;
-  }
+  .app-header .container { align-items: flex-start; }
+  .app-header .d-flex { flex-wrap: wrap; justify-content: flex-end; }
+  .album-layout { grid-template-columns: 1fr; }
+  .album-art { max-width: 520px; }
 }

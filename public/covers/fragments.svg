@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="Fragments">
+  <rect width="800" height="800" fill="#26354a"/>
+  <circle cx="620" cy="180" r="140" fill="#c6d6ff" opacity="0.16"/>
+  <circle cx="160" cy="650" r="220" fill="#c6d6ff" opacity="0.10"/>
+  <path d="M90 510 C220 350 330 700 470 470 S680 360 740 520" fill="none" stroke="#c6d6ff" stroke-width="20" opacity="0.55"/>
+  <text x="70" y="105" fill="#c6d6ff" font-family="Arial, sans-serif" font-size="34" font-weight="700">TIDAL WAVE MOCK</text>
+  <text x="70" y="690" fill="#c6d6ff" font-family="Arial, sans-serif" font-size="58" font-weight="700">Fragments</text>
+</svg>

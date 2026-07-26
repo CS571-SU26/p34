@@ -7,6 +7,7 @@ export default function HomeView({
   onSurprise,
   busy,
   error,
+  dataSource,
 }) {
   return (
     <main className="page-shell">
@@ -18,6 +19,12 @@ export default function HomeView({
           and album for you.
         </p>
       </section>
+
+      {dataSource === 'tidal' && (
+        <Alert variant="info">
+          Real TIDAL data is selected, but the provider is still a placeholder.
+        </Alert>
+      )}
 
       {error && <Alert variant="danger">{error}</Alert>}
 

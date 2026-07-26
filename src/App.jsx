@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AppHeader from './components/AppHeader.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
 import HomeView from './components/HomeView.jsx';
@@ -6,25 +6,45 @@ import ArtistReveal from './components/ArtistReveal.jsx';
 import AlbumView from './components/AlbumView.jsx';
 import {
   getNewestAlbum,
-  getRandomAlbum,
-  getRandomArtist,
+  getNextAlbum,
+  getNextArtist,
   searchArtists,
 } from './services/musicService.js';
 
+const SETTINGS_KEY = 'tidal-wave-settings-v1';
 const initialSettings = {
   includeEps: true,
   includeLiveAlbums: false,
+  darkMode: true,
+  dataSource: 'mock',
 };
+
+function loadSettings() {
+  try {
+    return {
+      ...initialSettings,
+      ...JSON.parse(window.localStorage.getItem(SETTINGS_KEY)),
+    };
+  } catch {
+    return initialSettings;
+  }
+}
 
 export default function App() {
   const [view, setView] = useState('home');
   const [query, setQuery] = useState('');
-  const [settings, setSettings] = useState(initialSettings);
+  const [settings, setSettings] = useState(loadSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [selectedAlbum, setSelectedAlbum] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    document.documentElement.dataset.bsTheme = settings.darkMode ? 'dark' : 'light';
+    document.documentElement.dataset.theme = settings.darkMode ? 'dark' : 'light';
+    window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  }, [settings]);
 
   function resetHome() {
     setView('home');
@@ -37,22 +57,31 @@ export default function App() {
     setSettings((current) => ({ ...current, [name]: value }));
   }
 
-  async function handleSearch(event) {
-    event.preventDefault();
+  async function runAction(action) {
     setBusy(true);
     setError('');
-
     try {
-      const matches = await searchArtists(query);
+      await action();
+    } catch (actionError) {
+      setError(actionError.message || 'Something went wrong.');
+      setView('home');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleSearch(event) {
+    event.preventDefault();
+    runAction(async () => {
+      const matches = await searchArtists(query, settings.dataSource);
       const artist = matches[0];
 
       if (!artist) {
-        setError('No matching artist was found in the mock catalog.');
+        setError('No matching artist was found in the current catalog.');
         return;
       }
 
-      const album = await getNewestAlbum(artist, settings);
-
+      const album = await getNewestAlbum(artist, settings, settings.dataSource);
       if (!album) {
         setError('That artist has no albums matching the current settings.');
         return;
@@ -61,45 +90,40 @@ export default function App() {
       setSelectedArtist(artist);
       setSelectedAlbum(album);
       setView('album');
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
-  async function handleSurprise() {
-    setBusy(true);
-    setError('');
-
-    try {
-      const artist = await getRandomArtist();
+  function handleSurprise() {
+    runAction(async () => {
+      const artist = await getNextArtist(settings.dataSource);
+      if (!artist) {
+        setError('No artists are available in the current catalog.');
+        return;
+      }
       setSelectedArtist(artist);
       setSelectedAlbum(null);
       setView('artist');
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
-  async function chooseRandomAlbum() {
+  function chooseNextAlbum() {
     if (!selectedArtist) return;
 
-    setBusy(true);
-    setError('');
-
-    try {
-      const album = await getRandomAlbum(selectedArtist, settings);
+    runAction(async () => {
+      const album = await getNextAlbum(
+        selectedArtist,
+        settings,
+        settings.dataSource,
+      );
 
       if (!album) {
         setError('This artist has no albums matching the current settings.');
-        setView('home');
         return;
       }
 
       setSelectedAlbum(album);
       setView('album');
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   return (
@@ -114,6 +138,7 @@ export default function App() {
           onSurprise={handleSurprise}
           busy={busy}
           error={error}
+          dataSource={settings.dataSource}
         />
       )}
 
@@ -121,7 +146,7 @@ export default function App() {
         <ArtistReveal
           artist={selectedArtist}
           onTryAgain={handleSurprise}
-          onContinue={chooseRandomAlbum}
+          onContinue={chooseNextAlbum}
           busy={busy}
         />
       )}
@@ -130,7 +155,7 @@ export default function App() {
         <AlbumView
           artist={selectedArtist}
           album={selectedAlbum}
-          onShuffleAgain={chooseRandomAlbum}
+          onShuffleAgain={chooseNextAlbum}
           busy={busy}
         />
       )}
