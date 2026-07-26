@@ -1,52 +1,33 @@
 # Tidal Wave
 
-A usability-first React prototype for album-oriented music discovery.
+A React/Vite app for album-oriented discovery using either mock data or a user's followed TIDAL artists.
 
-## Run locally
+## Local setup
 
 ```bash
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
-## Current behavior
+Set `VITE_TIDAL_CLIENT_ID` in `.env.local`. The local redirect URI must exactly match a callback registered for the TIDAL app. The default local callback is `http://localhost:5173/`; the production build uses the `/p34/` GitHub Pages base automatically.
 
-- Search for a mock artist and show their newest eligible release.
-- Cycle through artists in a shuffled round-robin queue.
-- Cycle through each artist's eligible albums the same way.
-- Queues are cached in `sessionStorage`; after every option is used, the queue is reshuffled.
-- Filter EPs and live albums.
-- Switch between light and dark mode; dark mode is the default.
-- Select Mock data or the placeholder Real TIDAL data source.
-- Hand off to TIDAL for playback.
+## Production deployment
 
-Settings are saved in `localStorage`. Selection queues are deliberately temporary and last only for the browser tab's session.
+The repository includes `.github/workflows/deploy.yml`. It builds and deploys after every push to `main` and can also be run manually.
 
-## Mock catalog
+1. In GitHub, open **Settings → Pages** and select **GitHub Actions** as the source.
+2. Open **Settings → Secrets and variables → Actions → Variables**.
+3. Add a repository variable named `VITE_TIDAL_CLIENT_ID` containing the public TIDAL client ID.
+4. Push to `main`, then monitor the run in the **Actions** tab.
 
-These names can be entered in the artist search:
+The production callback is `https://cs571-su26.github.io/p34/`.
 
-- **Aurora Static** — *Glass Horizon*, *Night Transit*, *Northbound: Live*
-- **Paper Moons** — *The Small Hours*, *Postcards* (EP)
-- **Cedar Lines** — *Field Notes*
-- **Velvet Circuit** — *Soft Machines*, *Signal Bloom*
-- **Harbor Lights** — *Low Tide*, *Dockside Sessions* (live)
-- **Mosaic Year** — *Borrowed Colors*, *Fragments* (EP)
+## Current TIDAL flow
 
-All names, releases, tracks, and artwork in the mock catalog are fictional.
-
-## Architecture and enhancement anchors
-
-- `src/services/musicService.js` owns selection, caching, and the provider seam.
-- The `dataSource` setting already distinguishes `mock` from `tidal`.
-- Choosing `tidal` currently produces a clear placeholder error instead of silently falling back to mock data.
-- `src/components/AlbumView.jsx` contains an anchor for a future Cover Flow-style selector.
-- Login remains disabled until OAuth is implemented. The app should never collect a user's TIDAL password.
-
-## Suggested milestones
-
-1. Add a TIDAL provider for public artist search and album lookup.
-2. Add OAuth and followed-artist retrieval.
-3. Normalize TIDAL responses into the current artist/album shapes.
-4. Add official TIDAL embeds.
-5. Add optional album-selection animation.
+- OAuth Authorization Code with PKCE.
+- Tokens are stored in `localStorage`, not cookies; access tokens are refreshed when possible.
+- Followed artists are fetched page-by-page with `include=items` and flattened into one searchable array.
+- Artist albums and artwork are fetched only after the relevant artist or album is selected.
+- The live filter uses a whole-word `/\blive\b/i` title heuristic, so titles containing `alive` are retained.
+- TIDAL-only controls are hidden while the app is using mock data.

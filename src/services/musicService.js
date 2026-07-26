@@ -1,9 +1,15 @@
 import { mockArtists } from '../data/mockMusic.js';
+import { getAccessToken } from './authService.js';
 
+const API_ROOT = 'https://openapi.tidal.com/v2';
+const CACHE_KEY = 'tidal-wave-round-robin-v1';
+const PLACEHOLDER_ART = `${import.meta.env.BASE_URL}covers/artist-mosaic.svg`;
 const wait = (milliseconds = 250) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
-const CACHE_KEY = 'tidal-wave-round-robin-v1';
+let followedArtistsCache = null;
+const albumsByArtistCache = new Map();
+const artworkUrlCache = new Map();
 
 function shuffle(items) {
   const copy = [...items];
@@ -28,89 +34,234 @@ function writeCache(cache) {
 
 function takeNext(cacheId, availableIds) {
   if (availableIds.length === 0) return null;
-
   const cache = readCache();
   const validIds = new Set(availableIds);
   let queue = Array.isArray(cache[cacheId])
     ? cache[cacheId].filter((id) => validIds.has(id))
     : [];
-
-  // Refill only after every currently eligible option has been used.
-  if (queue.length === 0) {
-    queue = shuffle(availableIds);
-  }
-
+  if (queue.length === 0) queue = shuffle(availableIds);
   const nextId = queue.shift();
   cache[cacheId] = queue;
   writeCache(cache);
   return nextId;
 }
 
+function normalizeSearchText(value) {
+  return value.normalize('NFKC').toLocaleLowerCase();
+}
+
+function isLiveTitle(title) {
+  return /\blive\b/i.test(title ?? '');
+}
+
 function filterAlbums(albums, settings) {
   return albums.filter((album) => {
     if (!settings.includeEps && album.type === 'ep') return false;
-    if (!settings.includeLiveAlbums && album.type === 'live') return false;
+    if (!settings.includeLiveAlbums && isLiveTitle(album.title)) return false;
     return true;
   });
 }
 
-function assertMockSource(dataSource) {
-  if (dataSource === 'tidal') {
-    throw new Error(
-      'Real TIDAL data is not connected yet. Switch Data source back to Mock data.',
-    );
+async function tidalFetch(path) {
+  const token = await getAccessToken();
+  const url = path.startsWith('http') ? path : `${API_ROOT}${path}`;
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.api+json',
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`TIDAL request failed (${response.status}): ${body}`);
   }
+  return response.json();
+}
+
+function normalizeFollowedArtistsPage(page) {
+  const artistsById = new Map(
+    (page.included ?? [])
+      .filter((item) => item.type === 'artists')
+      .map((artist) => [artist.id, artist]),
+  );
+
+  return page.data.map((relationship) => {
+    const artist = artistsById.get(relationship.id);
+    return {
+      id: relationship.id,
+      name: artist?.attributes?.name ?? 'Unknown artist',
+      addedAt: relationship.meta?.addedAt ?? null,
+      popularity: artist?.attributes?.popularity ?? null,
+      imageUrl: PLACEHOLDER_ART,
+      source: 'tidal',
+    };
+  });
+}
+
+async function getFollowedArtistPages(url = null, onProgress = null, pageNumber = 1) {
+  const requestUrl =
+    url ??
+    '/userCollectionArtists/me/relationships/items?countryCode=US&include=items';
+  const page = await tidalFetch(requestUrl);
+  onProgress?.({ pageNumber, loaded: pageNumber * page.data.length });
+  const nextUrl = page.links?.next;
+  return nextUrl
+    ? [page, ...(await getFollowedArtistPages(nextUrl, onProgress, pageNumber + 1))]
+    : [page];
+}
+
+export async function loadFollowedArtists(onProgress = null, force = false) {
+  if (followedArtistsCache && !force) return followedArtistsCache;
+  const pages = await getFollowedArtistPages(null, onProgress);
+  followedArtistsCache = pages.flatMap(normalizeFollowedArtistsPage);
+  return followedArtistsCache;
+}
+
+async function getArtworkUrl(artworkId, preferredWidth = 640) {
+  if (!artworkId) return PLACEHOLDER_ART;
+  if (artworkUrlCache.has(artworkId)) return artworkUrlCache.get(artworkId);
+
+  const response = await tidalFetch(`/artworks/${artworkId}`);
+  const files = response.data?.attributes?.files ?? [];
+  const selected =
+    files.find((file) => file.meta?.width === preferredWidth) ??
+    [...files].sort(
+      (a, b) =>
+        Math.abs((a.meta?.width ?? 0) - preferredWidth) -
+        Math.abs((b.meta?.width ?? 0) - preferredWidth),
+    )[0];
+  const url = selected?.href ?? PLACEHOLDER_ART;
+  artworkUrlCache.set(artworkId, url);
+  return url;
+}
+
+async function hydrateArtist(artist) {
+  if (artist.source !== 'tidal') return artist;
+  const response = await tidalFetch(
+    `/artists/${artist.id}?countryCode=US&include=profileArt`,
+  );
+  const profileArtId = response.data?.relationships?.profileArt?.data?.[0]?.id;
+  return { ...artist, imageUrl: await getArtworkUrl(profileArtId, 640) };
+}
+
+function normalizeAlbum(resource) {
+  const albumType = resource.attributes?.albumType ?? resource.attributes?.type;
+  return {
+    id: resource.id,
+    title: resource.attributes?.title ?? 'Untitled album',
+    releaseDate: resource.attributes?.releaseDate ?? null,
+    type: String(albumType ?? 'album').toLocaleLowerCase(),
+    artworkId: resource.relationships?.coverArt?.data?.[0]?.id ?? null,
+    artworkUrl: PLACEHOLDER_ART,
+    tidalUrl: `https://tidal.com/album/${resource.id}`,
+    tracks: [],
+    numberOfItems: resource.attributes?.numberOfItems ?? null,
+    source: 'tidal',
+  };
+}
+
+async function getArtistAlbumPages(artistId, url = null) {
+  const requestUrl =
+    url ??
+    `/artists/${artistId}/relationships/albums?countryCode=US&include=albums`;
+  const page = await tidalFetch(requestUrl);
+  const nextUrl = page.links?.next;
+  return nextUrl
+    ? [page, ...(await getArtistAlbumPages(artistId, nextUrl))]
+    : [page];
+}
+
+async function loadArtistAlbums(artistId) {
+  if (albumsByArtistCache.has(artistId)) return albumsByArtistCache.get(artistId);
+  const pages = await getArtistAlbumPages(artistId);
+  const albums = pages
+    .flatMap((page) => page.included ?? [])
+    .filter((resource) => resource.type === 'albums')
+    .map(normalizeAlbum);
+  const uniqueAlbums = [...new Map(albums.map((album) => [album.id, album])).values()];
+  albumsByArtistCache.set(artistId, uniqueAlbums);
+  return uniqueAlbums;
+}
+
+async function hydrateAlbumArtwork(album) {
+  if (album.source !== 'tidal') return album;
+  return { ...album, artworkUrl: await getArtworkUrl(album.artworkId, 640) };
 }
 
 export async function searchArtists(query, dataSource = 'mock') {
-  await wait();
-  assertMockSource(dataSource);
-  const normalizedQuery = query.trim().toLowerCase();
+  if (dataSource === 'mock') {
+    await wait();
+    const normalizedQuery = normalizeSearchText(query.trim());
+    return mockArtists.filter((artist) =>
+      normalizeSearchText(artist.name).includes(normalizedQuery),
+    );
+  }
 
-  if (!normalizedQuery) return [];
-
-  return mockArtists.filter((artist) =>
-    artist.name.toLowerCase().includes(normalizedQuery),
+  const artists = await loadFollowedArtists();
+  const normalizedQuery = normalizeSearchText(query.trim());
+  return artists.filter((artist) =>
+    normalizeSearchText(artist.name).includes(normalizedQuery),
   );
+}
+
+export async function getArtistSuggestions(query, dataSource = 'mock', limit = 8) {
+  if (!query.trim()) return [];
+  const artists = dataSource === 'mock' ? mockArtists : await loadFollowedArtists();
+  const needle = normalizeSearchText(query.trim());
+  return artists
+    .map((artist) => {
+      const name = normalizeSearchText(artist.name);
+      if (name.startsWith(needle)) return { artist, rank: 0 };
+      if (name.includes(needle)) return { artist, rank: 1 };
+      return null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.rank - b.rank || a.artist.name.localeCompare(b.artist.name))
+    .slice(0, limit)
+    .map(({ artist }) => artist);
 }
 
 export async function getNewestAlbum(artist, settings, dataSource = 'mock') {
-  await wait();
-  assertMockSource(dataSource);
-  const eligibleAlbums = filterAlbums(artist.albums, settings);
-
-  return [...eligibleAlbums].sort(
+  const albums = dataSource === 'mock' ? artist.albums : await loadArtistAlbums(artist.id);
+  const eligible = filterAlbums(albums, settings);
+  const album = [...eligible].sort(
     (left, right) => new Date(right.releaseDate) - new Date(left.releaseDate),
-  )[0] ?? null;
+  )[0];
+  return album ? hydrateAlbumArtwork(album) : null;
 }
 
 export async function getNextArtist(dataSource = 'mock') {
-  await wait();
-  assertMockSource(dataSource);
-  const nextId = takeNext(
-    'artists',
-    mockArtists.map((artist) => artist.id),
-  );
-
-  return mockArtists.find((artist) => artist.id === nextId) ?? null;
+  if (dataSource === 'mock') await wait();
+  const artists = dataSource === 'mock' ? mockArtists : await loadFollowedArtists();
+  const nextId = takeNext(`artists:${dataSource}`, artists.map((artist) => artist.id));
+  const artist = artists.find((candidate) => candidate.id === nextId) ?? null;
+  return artist ? hydrateArtist(artist) : null;
 }
 
 export async function getNextAlbum(artist, settings, dataSource = 'mock') {
-  await wait();
-  assertMockSource(dataSource);
-  const eligibleAlbums = filterAlbums(artist.albums, settings);
+  if (dataSource === 'mock') await wait();
+  const albums = dataSource === 'mock' ? artist.albums : await loadArtistAlbums(artist.id);
+  const eligible = filterAlbums(albums, settings);
   const settingsKey = `${settings.includeEps}-${settings.includeLiveAlbums}`;
   const nextId = takeNext(
-    `albums:${artist.id}:${settingsKey}`,
-    eligibleAlbums.map((album) => album.id),
+    `albums:${dataSource}:${artist.id}:${settingsKey}`,
+    eligible.map((album) => album.id),
   );
+  const album = eligible.find((candidate) => candidate.id === nextId) ?? null;
+  return album ? hydrateAlbumArtwork(album) : null;
+}
 
-  return eligibleAlbums.find((album) => album.id === nextId) ?? null;
+export async function hydrateSelectedArtist(artist) {
+  return hydrateArtist(artist);
 }
 
 export function clearSelectionCache() {
   window.sessionStorage.removeItem(CACHE_KEY);
 }
 
-// Integration anchor: add a TIDAL-backed provider here while preserving the
-// normalized artist and album shapes consumed by the React components.
+export function clearTidalDataCache() {
+  followedArtistsCache = null;
+  albumsByArtistCache.clear();
+  artworkUrlCache.clear();
+}

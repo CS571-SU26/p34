@@ -51,3 +51,5 @@ button, input { font: inherit; }
   .album-layout { grid-template-columns: 1fr; }
   .album-art { max-width: 520px; }
 }
+.artist-search-wrap { position: relative; }
+.suggestions { position: absolute; z-index: 1050; top: calc(100% + 0.25rem); right: 0; left: 0; max-height: 20rem; overflow-y: auto; }
