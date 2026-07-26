@@ -1,0 +1,77 @@
+export const mockArtists = [
+  {
+    id: 'aurora-static',
+    name: 'Aurora Static',
+    imageUrl: '/covers/artist-aurora.svg',
+    albums: [
+      {
+        id: 'glass-horizon',
+        title: 'Glass Horizon',
+        releaseDate: '2025-10-03',
+        type: 'album',
+        artworkUrl: '/covers/glass-horizon.svg',
+        tidalUrl: 'https://tidal.com',
+        tracks: ['First Light', 'Parallel Lines', 'Blue Signal', 'Afterimage'],
+      },
+      {
+        id: 'night-transit',
+        title: 'Night Transit',
+        releaseDate: '2023-06-16',
+        type: 'album',
+        artworkUrl: '/covers/night-transit.svg',
+        tidalUrl: 'https://tidal.com',
+        tracks: ['Departure', 'Signal Lost', 'Moving Lights', 'Terminal'],
+      },
+      {
+        id: 'northbound-live',
+        title: 'Northbound: Live',
+        releaseDate: '2024-02-09',
+        type: 'live',
+        artworkUrl: '/covers/northbound-live.svg',
+        tidalUrl: 'https://tidal.com',
+        tracks: ['First Light (Live)', 'Terminal (Live)', 'Encore'],
+      },
+    ],
+  },
+  {
+    id: 'paper-moons',
+    name: 'Paper Moons',
+    imageUrl: '/covers/artist-paper.svg',
+    albums: [
+      {
+        id: 'small-hours',
+        title: 'The Small Hours',
+        releaseDate: '2024-08-23',
+        type: 'album',
+        artworkUrl: '/covers/small-hours.svg',
+        tidalUrl: 'https://tidal.com',
+        tracks: ['Kitchen Radio', 'Half Awake', 'Window Seat', 'Morning Again'],
+      },
+      {
+        id: 'postcards-ep',
+        title: 'Postcards',
+        releaseDate: '2025-01-31',
+        type: 'ep',
+        artworkUrl: '/covers/postcards.svg',
+        tidalUrl: 'https://tidal.com',
+        tracks: ['Front', 'Back', 'No Address'],
+      },
+    ],
+  },
+  {
+    id: 'cedar-lines',
+    name: 'Cedar Lines',
+    imageUrl: '/covers/artist-cedar.svg',
+    albums: [
+      {
+        id: 'field-notes',
+        title: 'Field Notes',
+        releaseDate: '2025-04-11',
+        type: 'album',
+        artworkUrl: '/covers/field-notes.svg',
+        tidalUrl: 'https://tidal.com',
+        tracks: ['Trailhead', 'Rain Gauge', 'Old Map', 'Home by Dusk'],
+      },
+    ],
+  },
+];
