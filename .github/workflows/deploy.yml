@@ -16,10 +16,10 @@ concurrency:
 
 jobs:
   deploy:
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -28,31 +28,11 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          # Pin an exact version while diagnosing the npm CLI crash.
-          node-version: 22.4.1
+          node-version: 24
           package-manager-cache: false
 
-      - name: Show tool versions
-        run: |
-          node --version
-          npm --version
-
       - name: Install dependencies
-        run: npm install --no-audit --no-fund --loglevel verbose
-
-      - name: Print npm debug log on install failure
-        if: failure()
-        run: |
-          echo "npm failed. Available debug logs:"
-          find "$HOME/.npm/_logs" -maxdepth 1 -type f -print 2>/dev/null || true
-          latest_log="$(find "$HOME/.npm/_logs" -maxdepth 1 -type f 2>/dev/null | sort | tail -n 1)"
-          if [ -n "$latest_log" ]; then
-            echo "----- BEGIN $latest_log -----"
-            cat "$latest_log"
-            echo "----- END $latest_log -----"
-          else
-            echo "No npm debug log was found."
-          fi
+        run: npm ci --include=dev --no-audit --no-fund
 
       - name: Build
         env:
@@ -63,8 +43,8 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v6
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
