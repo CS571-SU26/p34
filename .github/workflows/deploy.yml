@@ -32,8 +32,8 @@ jobs:
           package-manager-cache: false
 
       - name: Install dependencies
-        run: npm ci --include=dev --no-audit --no-fund
-
+        run: npm ci --include=dev --no-audit --no-fund --registry=https://registry.npmjs.org/
+        
       - name: Build
         env:
           VITE_TIDAL_CLIENT_ID: ${{ vars.VITE_TIDAL_CLIENT_ID }}
