@@ -91,8 +91,12 @@ export default function App() {
     let active = true;
     setArtistsLoading(true);
     setLoadingMessage('Loading your followed artists…');
-    loadFollowedArtists(({ loaded }) => {
-      if (active) setLoadingMessage(`Loading your followed artists… ${loaded} loaded`);
+    loadFollowedArtists(({ loaded, total }) => {
+      if (active) {
+        setLoadingMessage(
+          `Loading your followed artists… ${loaded}${total ? ` of ${total}` : ''} loaded`,
+        );
+      }
     })
       .then((artists) => {
         if (active) setLoadingMessage(`${artists.length} followed artists ready.`);
@@ -132,7 +136,7 @@ export default function App() {
 
   function updateSetting(name, value) {
     setSettings((current) => ({ ...current, [name]: value }));
-    resetHome();
+    if (name !== 'darkMode') resetHome();
   }
 
   async function runAction(action, message = '') {
@@ -199,7 +203,7 @@ export default function App() {
   function chooseNextAlbum() {
     if (!selectedArtist) return;
     runAction(async () => {
-      const album = await getNextAlbum(selectedArtist, settings, settings.dataSource);
+      const album = await getNextAlbum(selectedArtist, settings, settings.dataSource, selectedAlbum?.id);
       if (!album) {
         setError('This artist has no albums matching the current settings.');
         return;

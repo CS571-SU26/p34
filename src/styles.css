@@ -43,6 +43,8 @@ button, input { font: inherit; }
 .artist-image { width: 100%; aspect-ratio: 16 / 8; object-fit: cover; background: #303438; }
 .album-layout { display: grid; grid-template-columns: minmax(240px, 360px) minmax(0, 1fr); gap: clamp(2rem, 6vw, 5rem); align-items: start; }
 .album-art { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #303438; border-radius: 0.35rem; }
+.album-embed { border-radius: 0.5rem; overflow: hidden; }
+.album-embed iframe { display: block; border: 0; }
 .future-anchor { padding: 1rem 1.25rem; border: 1px dashed var(--anchor-border); border-radius: 0.5rem; color: var(--muted); background: var(--anchor-bg); }
 
 @media (max-width: 720px) {

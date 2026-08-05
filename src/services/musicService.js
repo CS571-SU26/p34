@@ -9,8 +9,10 @@ const wait = (milliseconds = 250) =>
 
 let followedArtistsCache = null;
 let followedArtistsPromise = null;
+const followedArtistsProgressListeners = new Set();
 const albumsByArtistCache = new Map();
 const artworkUrlCache = new Map();
+const albumTracksCache = new Map();
 
 function shuffle(items) {
   const copy = [...items];
@@ -33,7 +35,18 @@ function writeCache(cache) {
   window.sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
 }
 
-function takeNext(cacheId, availableIds) {
+function drawFromQueue(queue, excludeId) {
+  const nextId = queue.shift();
+  // Defer the excluded id to the back of the queue rather than dropping it,
+  // so the round-robin order still cycles through it on a later turn.
+  if (excludeId != null && nextId === excludeId && queue.length > 0) {
+    queue.push(nextId);
+    return queue.shift();
+  }
+  return nextId;
+}
+
+function takeNext(cacheId, availableIds, excludeId = null) {
   if (availableIds.length === 0) return null;
   const cache = readCache();
   const validIds = new Set(availableIds);
@@ -41,7 +54,15 @@ function takeNext(cacheId, availableIds) {
     ? cache[cacheId].filter((id) => validIds.has(id))
     : [];
   if (queue.length === 0) queue = shuffle(availableIds);
-  const nextId = queue.shift();
+
+  let nextId = drawFromQueue(queue, excludeId);
+  if (nextId === excludeId && queue.length === 0 && availableIds.length > 1) {
+    // The excluded id was the only item left this round; start a fresh round
+    // so there's something else available to offer instead.
+    queue = shuffle(availableIds);
+    nextId = drawFromQueue(queue, excludeId);
+  }
+
   cache[cacheId] = queue;
   writeCache(cache);
   return nextId;
@@ -123,18 +144,30 @@ function normalizeFollowedArtistsPage(page) {
   });
 }
 
+async function getFollowedArtistsTotal() {
+  try {
+    const response = await tidalFetch('/userCollectionArtists/me?countryCode=US');
+    return response.data?.attributes?.numberOfItems ?? null;
+  } catch {
+    // Total is a nice-to-have for the progress message; don't fail the load over it.
+    return null;
+  }
+}
+
 async function getFollowedArtistPages(
   url = null,
-  onProgress = null,
   pageNumber = 1,
   loadedCount = 0,
+  total = null,
 ) {
   const requestUrl =
     url ??
     '/userCollectionArtists/me/relationships/items?countryCode=US&include=items';
   const page = await tidalFetch(requestUrl);
   const nextLoadedCount = loadedCount + page.data.length;
-  onProgress?.({ pageNumber, loaded: nextLoadedCount });
+  followedArtistsProgressListeners.forEach((listener) =>
+    listener({ pageNumber, loaded: nextLoadedCount, total }),
+  );
   const nextUrl = page.links?.next;
 
   if (!nextUrl) return [page];
@@ -145,18 +178,26 @@ async function getFollowedArtistPages(
     page,
     ...(await getFollowedArtistPages(
       nextUrl,
-      onProgress,
       pageNumber + 1,
       nextLoadedCount,
+      total,
     )),
   ];
 }
 
 export async function loadFollowedArtists(onProgress = null, force = false) {
-  if (followedArtistsCache && !force) return followedArtistsCache;
-  if (followedArtistsPromise && !force) return followedArtistsPromise;
+  if (onProgress) followedArtistsProgressListeners.add(onProgress);
 
-  followedArtistsPromise = getFollowedArtistPages(null, onProgress)
+  if (followedArtistsCache && !force) {
+    followedArtistsProgressListeners.delete(onProgress);
+    return followedArtistsCache;
+  }
+  if (followedArtistsPromise && !force) {
+    return followedArtistsPromise.finally(() => followedArtistsProgressListeners.delete(onProgress));
+  }
+
+  followedArtistsPromise = getFollowedArtistsTotal()
+    .then((total) => getFollowedArtistPages(null, 1, 0, total))
     .then((pages) => {
       followedArtistsCache = pages.flatMap(normalizeFollowedArtistsPage);
       return followedArtistsCache;
@@ -164,7 +205,8 @@ export async function loadFollowedArtists(onProgress = null, force = false) {
     .catch((error) => {
       followedArtistsPromise = null;
       throw error;
-    });
+    })
+    .finally(() => followedArtistsProgressListeners.delete(onProgress));
 
   return followedArtistsPromise;
 }
@@ -237,7 +279,57 @@ async function loadArtistAlbums(artistId) {
 
 async function hydrateAlbumArtwork(album) {
   if (album.source !== 'tidal') return album;
-  return { ...album, artworkUrl: await getArtworkUrl(album.artworkId, 640) };
+  // The artist relationship endpoint only supports `include=albums`, so albums
+  // sourced that way never carry coverArt. Re-fetch the single album with
+  // include=coverArt, the same pattern hydrateArtist uses for profileArt.
+  const response = await tidalFetch(
+    `/albums/${album.id}?countryCode=US&include=coverArt`,
+  );
+  const artworkId = response.data?.relationships?.coverArt?.data?.[0]?.id ?? null;
+  return { ...album, artworkId, artworkUrl: await getArtworkUrl(artworkId, 640) };
+}
+
+async function getAlbumItemPages(albumId, url = null) {
+  const requestUrl =
+    url ??
+    `/albums/${albumId}/relationships/items?countryCode=US&include=items`;
+  const page = await tidalFetch(requestUrl);
+  const nextUrl = page.links?.next;
+  return nextUrl
+    ? [page, ...(await getAlbumItemPages(albumId, nextUrl))]
+    : [page];
+}
+
+async function loadAlbumTracks(albumId) {
+  if (albumTracksCache.has(albumId)) return albumTracksCache.get(albumId);
+
+  const pages = await getAlbumItemPages(albumId);
+  const trackTitlesById = new Map(
+    pages
+      .flatMap((page) => page.included ?? [])
+      .filter((resource) => resource.type === 'tracks')
+      .map((resource) => [resource.id, resource.attributes?.title]),
+  );
+  const tracks = pages
+    .flatMap((page) => page.data ?? [])
+    .filter((item) => item.type === 'tracks')
+    .sort((a, b) =>
+      (a.meta?.volumeNumber ?? 0) - (b.meta?.volumeNumber ?? 0) ||
+      (a.meta?.trackNumber ?? 0) - (b.meta?.trackNumber ?? 0),
+    )
+    .map((item) => trackTitlesById.get(item.id))
+    .filter(Boolean);
+
+  albumTracksCache.set(albumId, tracks);
+  return tracks;
+}
+
+async function hydrateAlbum(album) {
+  const [withArtwork, tracks] = await Promise.all([
+    hydrateAlbumArtwork(album),
+    album.source === 'tidal' ? loadAlbumTracks(album.id) : Promise.resolve(album.tracks),
+  ]);
+  return { ...withArtwork, tracks };
 }
 
 export async function searchArtists(query, dataSource = 'mock') {
@@ -279,7 +371,7 @@ export async function getNewestAlbum(artist, settings, dataSource = 'mock') {
   const album = [...eligible].sort(
     (left, right) => new Date(right.releaseDate) - new Date(left.releaseDate),
   )[0];
-  return album ? hydrateAlbumArtwork(album) : null;
+  return album ? hydrateAlbum(album) : null;
 }
 
 export async function getNextArtist(dataSource = 'mock') {
@@ -290,7 +382,7 @@ export async function getNextArtist(dataSource = 'mock') {
   return artist ? hydrateArtist(artist) : null;
 }
 
-export async function getNextAlbum(artist, settings, dataSource = 'mock') {
+export async function getNextAlbum(artist, settings, dataSource = 'mock', currentAlbumId = null) {
   if (dataSource === 'mock') await wait();
   const albums = dataSource === 'mock' ? artist.albums : await loadArtistAlbums(artist.id);
   const eligible = filterAlbums(albums, settings);
@@ -298,9 +390,10 @@ export async function getNextAlbum(artist, settings, dataSource = 'mock') {
   const nextId = takeNext(
     `albums:${dataSource}:${artist.id}:${settingsKey}`,
     eligible.map((album) => album.id),
+    currentAlbumId,
   );
   const album = eligible.find((candidate) => candidate.id === nextId) ?? null;
-  return album ? hydrateAlbumArtwork(album) : null;
+  return album ? hydrateAlbum(album) : null;
 }
 
 export async function hydrateSelectedArtist(artist) {
@@ -316,4 +409,5 @@ export function clearTidalDataCache() {
   followedArtistsPromise = null;
   albumsByArtistCache.clear();
   artworkUrlCache.clear();
+  albumTracksCache.clear();
 }
