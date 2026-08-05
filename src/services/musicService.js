@@ -3,12 +3,14 @@ import { getAccessToken } from './authService.js';
 
 const API_ROOT = 'https://openapi.tidal.com/v2';
 const CACHE_KEY = 'tidal-wave-round-robin-v1';
+const FOLLOWED_ARTISTS_STORAGE_KEY = 'tidal-wave-followed-artists-v1';
 const PLACEHOLDER_ART = `${import.meta.env.BASE_URL}covers/tidal-placeholder.svg`;
 const wait = (milliseconds = 250) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 let followedArtistsCache = null;
 let followedArtistsPromise = null;
+let lastRateLimitWait = 0;
 const followedArtistsProgressListeners = new Set();
 const albumsByArtistCache = new Map();
 const artworkUrlCache = new Map();
@@ -33,6 +35,24 @@ function readCache() {
 
 function writeCache(cache) {
   window.sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+}
+
+function readFollowedArtistsStorage() {
+  try {
+    const stored = JSON.parse(window.sessionStorage.getItem(FOLLOWED_ARTISTS_STORAGE_KEY));
+    return Array.isArray(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeFollowedArtistsStorage(artists) {
+  try {
+    window.sessionStorage.setItem(FOLLOWED_ARTISTS_STORAGE_KEY, JSON.stringify(artists));
+  } catch {
+    // sessionStorage can be unavailable (e.g. private browsing quota); the
+    // in-memory cache still works for the rest of the session either way.
+  }
 }
 
 function drawFromQueue(queue, excludeId) {
@@ -113,7 +133,9 @@ async function tidalFetch(path, attempt = 0) {
   });
 
   if (response.status === 429 && attempt < 5) {
-    await wait(getRetryDelay(response, attempt));
+    const delay = getRetryDelay(response, attempt);
+    lastRateLimitWait = delay;
+    await wait(delay);
     return tidalFetch(path, attempt + 1);
   }
 
@@ -188,6 +210,11 @@ async function getFollowedArtistPages(
 export async function loadFollowedArtists(onProgress = null, force = false) {
   if (onProgress) followedArtistsProgressListeners.add(onProgress);
 
+  if (!followedArtistsCache && !force) {
+    const stored = readFollowedArtistsStorage();
+    if (stored) followedArtistsCache = stored;
+  }
+
   if (followedArtistsCache && !force) {
     followedArtistsProgressListeners.delete(onProgress);
     return followedArtistsCache;
@@ -198,8 +225,16 @@ export async function loadFollowedArtists(onProgress = null, force = false) {
 
   followedArtistsPromise = getFollowedArtistsTotal()
     .then((total) => getFollowedArtistPages(null, 1, 0, total))
-    .then((pages) => {
+    .then(async (pages) => {
       followedArtistsCache = pages.flatMap(normalizeFollowedArtistsPage);
+      writeFollowedArtistsStorage(followedArtistsCache);
+      // Give TIDAL's rate limiter the same cooldown we just had to wait out,
+      // so whatever runs right after (e.g. loading the chosen artist's
+      // albums) doesn't immediately land back in a 429 loop.
+      if (lastRateLimitWait > 0) {
+        await wait(lastRateLimitWait);
+        lastRateLimitWait = 0;
+      }
       return followedArtistsCache;
     })
     .catch((error) => {
@@ -410,4 +445,5 @@ export function clearTidalDataCache() {
   albumsByArtistCache.clear();
   artworkUrlCache.clear();
   albumTracksCache.clear();
+  window.sessionStorage.removeItem(FOLLOWED_ARTISTS_STORAGE_KEY);
 }
