@@ -52,6 +52,7 @@ function writeFollowedArtistsStorage(artists) {
   } catch {
     // sessionStorage can be unavailable (e.g. private browsing quota); the
     // in-memory cache still works for the rest of the session either way.
+    // Why is this catch bare? I feel like there's a better way to handle it.
   }
 }
 
@@ -93,11 +94,14 @@ function normalizeSearchText(value) {
 }
 
 function isLiveTitle(title) {
+  // Unfortunately, Tidal doesn't have a flag in their API for live albums.
+  //This isn't perfect; some artists like to get clever and call their live albums something like "Alive" (thanks, Daft Punk) and the filter will miss those.
   return /\blive\b/i.test(title ?? '');
 }
 
 function filterAlbums(albums, settings) {
   return albums.filter((album) => {
+    // Can we instead add a default-off option in the settings to include singles?
     // Singles are never eligible. TIDAL identifies them explicitly in both
     // attributes.type and attributes.albumType; normalizeAlbum maps that to album.type.
     if (album.type === 'single') return false;
@@ -108,6 +112,7 @@ function filterAlbums(albums, settings) {
   });
 }
 
+//Handle 429s; the response will tell you how long you have to wait again to retry
 function getRetryDelay(response, attempt) {
   const retryAfter = response.headers.get('Retry-After');
 
@@ -125,7 +130,7 @@ function getRetryDelay(response, attempt) {
 async function tidalFetch(path, attempt = 0) {
   const token = await getAccessToken();
   const url = path.startsWith('http') ? path : `${API_ROOT}${path}`;
-  const response = await fetch(url, {
+  const response = await fetch(url, { //Can we change this to fetch(...).then(...).then(...)?
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: 'application/vnd.api+json',
@@ -171,11 +176,12 @@ async function getFollowedArtistsTotal() {
     const response = await tidalFetch('/userCollectionArtists/me?countryCode=US');
     return response.data?.attributes?.numberOfItems ?? null;
   } catch {
-    // Total is a nice-to-have for the progress message; don't fail the load over it.
+    // Total is a nice-to-have for the progress message, but don't fail the load over it.
     return null;
   }
 }
 
+//Handle the paginated API response recursively (we don't know how many pages the entire response will be)
 async function getFollowedArtistPages(
   url = null,
   pageNumber = 1,
@@ -192,7 +198,7 @@ async function getFollowedArtistPages(
   );
   const nextUrl = page.links?.next;
 
-  if (!nextUrl) return [page];
+  if (!nextUrl) return [page]; //We reached the end; send it
 
   // Keep cursor pagination sequential and avoid hammering the API.
   await wait(250);
@@ -207,7 +213,7 @@ async function getFollowedArtistPages(
   ];
 }
 
-export async function loadFollowedArtists(onProgress = null, force = false) {
+export async function loadFollowedArtists(onProgress = null, force = false) { //Would 'isInProgress' be a more descriptive name of onProgress?
   if (onProgress) followedArtistsProgressListeners.add(onProgress);
 
   if (!followedArtistsCache && !force) {
@@ -252,6 +258,8 @@ async function getArtworkUrl(artworkId, preferredWidth = 640) {
 
   const response = await tidalFetch(`/artworks/${artworkId}?countryCode=US`);
   const files = response.data?.attributes?.files ?? [];
+
+  //Tidal offers a plethora of album artwork sizes; find the one that fits best
   const selected =
     files.find((file) => file.meta?.width === preferredWidth) ??
     [...files].sort(
@@ -264,7 +272,7 @@ async function getArtworkUrl(artworkId, preferredWidth = 640) {
   return url;
 }
 
-async function hydrateArtist(artist) {
+async function hydrateArtist(artist) { //I'm not thrilled by this function name; can we change it to something more desriptive? Maybe "getArtistDetails"?
   if (artist.source !== 'tidal') return artist;
   const response = await tidalFetch(
     `/artists/${artist.id}?countryCode=US&include=profileArt`,
@@ -273,7 +281,7 @@ async function hydrateArtist(artist) {
   return { ...artist, imageUrl: await getArtworkUrl(profileArtId, 640) };
 }
 
-function normalizeAlbum(resource) {
+function normalizeAlbum(resource) { //I'm also not thrilled by this name; can we change it too? And while we're at it, can we also change "resource" to something less vauge?
   const albumType = resource.attributes?.albumType ?? resource.attributes?.type;
   return {
     id: resource.id,
@@ -289,6 +297,7 @@ function normalizeAlbum(resource) {
   };
 }
 
+//Handle the paginated API response recursively (we don't know how many pages the entire response will be)
 async function getArtistAlbumPages(artistId, url = null) {
   const requestUrl =
     url ??
@@ -312,7 +321,7 @@ async function loadArtistAlbums(artistId) {
   return uniqueAlbums;
 }
 
-async function hydrateAlbumArtwork(album) {
+async function hydrateAlbumArtwork(album) { //I'm also not thrilled by this name; can we change it too? Maybe just "getAlbumArtwork?"
   if (album.source !== 'tidal') return album;
   // The artist relationship endpoint only supports `include=albums`, so albums
   // sourced that way never carry coverArt. Re-fetch the single album with
@@ -324,7 +333,8 @@ async function hydrateAlbumArtwork(album) {
   return { ...album, artworkId, artworkUrl: await getArtworkUrl(artworkId, 640) };
 }
 
-async function getAlbumItemPages(albumId, url = null) {
+//Handle the paginated API response recursively (we don't know how many pages the entire response will be)
+async function getAlbumItemPages(albumId, url = null) { //Can we rename this to "getAlbumTrackPages" to match the other paginated-response function pairs?
   const requestUrl =
     url ??
     `/albums/${albumId}/relationships/items?countryCode=US&include=items`;
@@ -383,10 +393,11 @@ export async function searchArtists(query, dataSource = 'mock') {
   );
 }
 
+//Show up to 8 artist suggestions as the user types the name
 export async function getArtistSuggestions(query, dataSource = 'mock', limit = 8) {
   if (!query.trim()) return [];
   const artists = dataSource === 'mock' ? mockArtists : await loadFollowedArtists();
-  const needle = normalizeSearchText(query.trim());
+  const needle = normalizeSearchText(query.trim()); //Unless we're going to reference a haystack, can we rename this to something closer to "artistSearchStub" that is more descriptive?
   return artists
     .map((artist) => {
       const name = normalizeSearchText(artist.name);
@@ -394,7 +405,7 @@ export async function getArtistSuggestions(query, dataSource = 'mock', limit = 8
       if (name.includes(needle)) return { artist, rank: 1 };
       return null;
     })
-    .filter(Boolean)
+    .filter(Boolean) //What is this doing? Should we filter before we map (for performance)?
     .sort((a, b) => a.rank - b.rank || a.artist.name.localeCompare(b.artist.name))
     .slice(0, limit)
     .map(({ artist }) => artist);
@@ -410,7 +421,7 @@ export async function getNewestAlbum(artist, settings, dataSource = 'mock') {
 }
 
 export async function getNextArtist(dataSource = 'mock') {
-  if (dataSource === 'mock') await wait();
+  if (dataSource === 'mock') await wait(); //Why are we just waiting here?
   const artists = dataSource === 'mock' ? mockArtists : await loadFollowedArtists();
   const nextId = takeNext(`artists:${dataSource}`, artists.map((artist) => artist.id));
   const artist = artists.find((candidate) => candidate.id === nextId) ?? null;
@@ -418,7 +429,7 @@ export async function getNextArtist(dataSource = 'mock') {
 }
 
 export async function getNextAlbum(artist, settings, dataSource = 'mock', currentAlbumId = null) {
-  if (dataSource === 'mock') await wait();
+  if (dataSource === 'mock') await wait(); //Why are we just waiting here?
   const albums = dataSource === 'mock' ? artist.albums : await loadArtistAlbums(artist.id);
   const eligible = filterAlbums(albums, settings);
   const settingsKey = `${settings.includeEps}-${settings.includeLiveAlbums}`;

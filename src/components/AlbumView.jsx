@@ -24,6 +24,8 @@ export default function AlbumView({ artist, album, onShuffleAgain, busy, usingTi
   // since the iframe is cross-origin we can't read its HTTP status, so if it
   // hasn't fired onLoad within a backoff window, treat it as stalled and
   // remount with a fresh src to retry.
+  // Update: this also won't work sometimes with ad-blockers or something.
+  // I've also noticed that leaving the page for too long eventually makes this just say "Try Tidal" like we're not authenticated or something, and the "Go to Tidal" link leads me to a nonexistent page regardless of the existence of the for-real album. We should probably check the token, maybe?
   useEffect(() => {
     if (!usingTidal) return undefined;
     embedLoadedRef.current = false;

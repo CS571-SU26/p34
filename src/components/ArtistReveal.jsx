@@ -20,6 +20,7 @@ export default function ArtistReveal({ artist, onTryAgain, onContinue, busy }) {
         <Button variant="primary" onClick={onContinue} disabled={busy}>
           {busy ? 'Choosing album…' : "Let's go"}
         </Button>
+        {/* Can we add a "go to Tidal" button that goes to the selected artist here?*/}
       </div>
     </main>
   );

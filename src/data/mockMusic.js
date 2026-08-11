@@ -1,3 +1,5 @@
+//This is just an AI-generated list of fake artists and their fake albums.
+// There's a mix of things that will hit the filters in the settings to give a variety of ways to test out the functionality without subscribing to Tidal
 const COVERS = `${import.meta.env.BASE_URL}covers/`;
 
 export const mockArtists = [

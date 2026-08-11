@@ -80,6 +80,7 @@ export async function beginTidalLogin() {
     throw new Error('VITE_TIDAL_CLIENT_ID is not configured.');
   }
 
+  //Why are these here and not higher up with the rest of the const declarations in the function?
   const state = randomString(32);
   const verifier = randomString(64);
   const challenge = await createCodeChallenge(verifier);

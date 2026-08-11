@@ -19,6 +19,7 @@ export default function HomeView({
 
   return (
     <main className="page-shell">
+      {/* I think this placeholder text in this session is lame; can you just remove it? I made an image we can put in its place. */}
       <section className="intro-copy">
         <p className="eyebrow">Album-first music discovery</p>
         <h1>Pick an album, not another playlist.</h1>
