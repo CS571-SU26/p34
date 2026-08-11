@@ -1,6 +1,6 @@
 import { Button, Card } from 'react-bootstrap';
 
-export default function ArtistReveal({ artist, onTryAgain, onContinue, busy }) {
+export default function ArtistReveal({ artist, onTryAgain, onContinue, busy, usingTidal }) {
   return (
     <main className="page-shell">
       <p className="eyebrow">You&apos;ll be listening to…</p>
@@ -21,6 +21,18 @@ export default function ArtistReveal({ artist, onTryAgain, onContinue, busy }) {
           {busy ? 'Choosing album…' : "Let's go"}
         </Button>
       </div>
+      {usingTidal && (
+        <div className="d-grid d-sm-flex mt-2">
+          <Button
+            variant="outline-secondary"
+            href={`https://tidal.com/artist/${artist.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open Artist in TIDAL
+          </Button>
+        </div>
+      )}
     </main>
   );
 }

@@ -20,17 +20,7 @@ export default function AlbumView({ artist, album, onShuffleAgain, busy, usingTi
     setEmbedStalled(false);
   }, [album.id]);
 
-  // TIDAL's embed endpoint occasionally rate-limits (429) or is briefly slow;
-  // since the iframe is cross-origin we can't read its HTTP status, so if it
-  // hasn't fired onLoad within a backoff window, treat it as stalled and
-  // remount with a fresh src to retry.
-  // Update: this also won't work sometimes with ad-blockers or something.
-  // Known issue: after leaving the page idle for a while, this can start showing
-  // "Try Tidal" as if unauthenticated, and the "Go to Tidal" link can point at a
-  // stale/nonexistent page even though the real album exists. Root cause is
-  // likely an expired TIDAL access token; fixing it needs a real token-expiry
-  // check (see authService) rather than a quick patch here — tracked as a
-  // follow-up, not fixed in this pass.
+  // TIDAL's embed endpoint is... pretty flaky. Doing our best here to give sensible retries, etc. but it could still break occasionally.
   useEffect(() => {
     if (!usingTidal) return undefined;
     embedLoadedRef.current = false;

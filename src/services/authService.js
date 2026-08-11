@@ -154,10 +154,30 @@ export async function getAccessToken() {
       logoutFromTidal();
       throw new Error('Your TIDAL session expired. Please log in again.');
     }
-    tokens = await refreshTokens(tokens.refresh_token);
+    try {
+      tokens = await refreshTokens(tokens.refresh_token);
+    } catch (refreshError) {
+      // The refresh token itself can expire or be revoked. Don't leave a dead
+      // token sitting in storage — clear it so isAuthenticated() correctly
+      // reports "logged out" instead of a session that looks valid but isn't.
+      logoutFromTidal();
+      throw new Error('Your TIDAL session expired. Please log in again.');
+    }
   }
 
   return tokens.access_token;
+}
+
+// Cheap, non-throwing check used to proactively detect an expired/revoked
+// session (e.g. after the app has been idle for a while) without having to
+// wait for a real API call to fail first.
+export async function ensureActiveSession() {
+  try {
+    await getAccessToken();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function logoutFromTidal() {

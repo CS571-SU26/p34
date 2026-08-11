@@ -102,11 +102,11 @@ function isLiveTitle(title) {
 
 function filterAlbums(albums, settings) {
   return albums.filter((album) => {
-    // Singles are never eligible. TIDAL identifies them explicitly in both
-    // attributes.type and attributes.albumType; normalizeAlbum maps that to album.type.
-    if (album.type === 'single') return false;
+    // TIDAL identifies singles explicitly in both attributes.type and
+    // attributes.albumType; normalizeAlbum maps that to album.type.
+    if (album.type === 'single' && !settings.includeSingles) return false;
     if (album.type === 'ep' && !settings.includeEps) return false;
-    if (!['album', 'ep'].includes(album.type)) return false;
+    if (!['album', 'ep', 'single'].includes(album.type)) return false;
     if (!settings.includeLiveAlbums && isLiveTitle(album.title)) return false;
     return true;
   });
@@ -432,7 +432,7 @@ export async function getNextAlbum(artist, settings, dataSource = 'mock', curren
   if (dataSource === 'mock') await wait(); // Simulate mock latency so mock mode's timing/UX matches a real Tidal fetch.
   const albums = dataSource === 'mock' ? artist.albums : await loadArtistAlbums(artist.id);
   const eligible = filterAlbums(albums, settings);
-  const settingsKey = `${settings.includeEps}-${settings.includeLiveAlbums}`;
+  const settingsKey = `${settings.includeEps}-${settings.includeSingles}-${settings.includeLiveAlbums}`;
   const nextId = takeNext(
     `albums:${dataSource}:${artist.id}:${settingsKey}`,
     eligible.map((album) => album.id),

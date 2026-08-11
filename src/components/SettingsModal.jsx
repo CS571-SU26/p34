@@ -7,6 +7,7 @@ export default function SettingsModal({ show, settings, onChange, onClose, authe
       <Modal.Body>
         <h2 className="h6">Album selection</h2>
         <Form.Check type="switch" id="include-eps" label="Include EPs" checked={settings.includeEps} onChange={(event) => onChange('includeEps', event.target.checked)} className="mb-3" />
+        <Form.Check type="switch" id="include-singles" label="Include singles" checked={settings.includeSingles} onChange={(event) => onChange('includeSingles', event.target.checked)} className="mb-3" />
         <Form.Check type="switch" id="include-live-albums" label="Include albums with “live” in the title" checked={settings.includeLiveAlbums} onChange={(event) => onChange('includeLiveAlbums', event.target.checked)} className="mb-4" />
         <h2 className="h6">Appearance</h2>
         <Form.Check type="switch" id="dark-mode" label="Dark mode" checked={settings.darkMode} onChange={(event) => onChange('darkMode', event.target.checked)} className="mb-4" />

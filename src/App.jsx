@@ -17,6 +17,7 @@ import {
 import {
   beginTidalLogin,
   completeTidalLoginFromUrl,
+  ensureActiveSession,
   isAuthenticated,
   logoutFromTidal,
 } from './services/authService.js';
@@ -24,6 +25,7 @@ import {
 const SETTINGS_KEY = 'tidal-wave-settings-v1';
 const initialSettings = {
   includeEps: true,
+  includeSingles: false,
   includeLiveAlbums: false,
   darkMode: true,
   dataSource: 'mock',
@@ -110,6 +112,26 @@ export default function App() {
         }
       });
     return () => { active = false; };
+  }, [usingTidal, authenticated]);
+
+  useEffect(() => {
+    if (!usingTidal || !authenticated) return undefined;
+    let active = true;
+    async function checkSession() {
+      const stillValid = await ensureActiveSession();
+      if (active && !stillValid) {
+        setAuthenticated(false);
+        resetHome();
+        setError('Your TIDAL session expired. Please log in again.');
+      }
+    }
+    checkSession();
+    // Check periodically (rather than only when the next API call happens to
+    // fail) so a long-idle session gets caught and the user is bounced back
+    // to a clear "log in again" state instead of sitting on a stale artist/
+    // album view with a silently broken embed.
+    const timer = window.setInterval(checkSession, 60_000);
+    return () => { active = false; window.clearInterval(timer); };
   }, [usingTidal, authenticated]);
 
   useEffect(() => {
@@ -262,7 +284,7 @@ export default function App() {
       )}
 
       {view === 'artist' && selectedArtist && (
-        <ArtistReveal artist={selectedArtist} onTryAgain={handleSurprise} onContinue={chooseNextAlbum} busy={busy} />
+        <ArtistReveal artist={selectedArtist} onTryAgain={handleSurprise} onContinue={chooseNextAlbum} busy={busy} usingTidal={usingTidal} />
       )}
 
       {view === 'album' && selectedArtist && selectedAlbum && (
