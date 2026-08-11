@@ -34,7 +34,15 @@ button, input { font: inherit; }
    keyboard users are oriented after switching views; it isn't part of the tab
    order (tabIndex={-1}), so it doesn't need a visible focus ring of its own. */
 .page-shell:focus { outline: none; }
-.intro-copy { max-width: 720px; margin-bottom: 1.25rem; }
+.intro-copy {
+  max-width: 720px;
+  margin-bottom: 1.25rem;
+  display: flex;
+  justify-content: center;
+  background: #10131a;
+  border-radius: 1rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+}
 .intro-copy h1 { font-size: clamp(2.2rem, 6vw, 4.7rem); line-height: 0.98; letter-spacing: -0.055em; }
 .intro-copy p:last-child { max-width: 640px; color: var(--muted); font-size: 1.1rem; }
 .intro-hero { width: auto; max-width: min(100%, 320px); height: auto; max-height: 18vh; display: block; }
