@@ -9,13 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
+    "@vitejs/plugin-react": "^6.0.5",
     "bootstrap": "^5.3.3",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "vite": "latest"
+    "vite": "^8.2.1"
   }
 }

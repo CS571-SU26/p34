@@ -49,10 +49,11 @@ function readFollowedArtistsStorage() {
 function writeFollowedArtistsStorage(artists) {
   try {
     window.sessionStorage.setItem(FOLLOWED_ARTISTS_STORAGE_KEY, JSON.stringify(artists));
-  } catch {
+  } catch (storageError) {
     // sessionStorage can be unavailable (e.g. private browsing quota); the
-    // in-memory cache still works for the rest of the session either way.
-    // Why is this catch bare? I feel like there's a better way to handle it.
+    // in-memory cache still works for the rest of the session either way, so
+    // this is intentionally non-fatal. Still log it so it's not silently lost.
+    console.warn('Could not persist followed artists to sessionStorage:', storageError);
   }
 }
 
@@ -101,7 +102,6 @@ function isLiveTitle(title) {
 
 function filterAlbums(albums, settings) {
   return albums.filter((album) => {
-    // Can we instead add a default-off option in the settings to include singles?
     // Singles are never eligible. TIDAL identifies them explicitly in both
     // attributes.type and attributes.albumType; normalizeAlbum maps that to album.type.
     if (album.type === 'single') return false;
@@ -130,7 +130,7 @@ function getRetryDelay(response, attempt) {
 async function tidalFetch(path, attempt = 0) {
   const token = await getAccessToken();
   const url = path.startsWith('http') ? path : `${API_ROOT}${path}`;
-  const response = await fetch(url, { //Can we change this to fetch(...).then(...).then(...)?
+  const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: 'application/vnd.api+json',
@@ -213,7 +213,7 @@ async function getFollowedArtistPages(
   ];
 }
 
-export async function loadFollowedArtists(onProgress = null, force = false) { //Would 'isInProgress' be a more descriptive name of onProgress?
+export async function loadFollowedArtists(onProgress = null, force = false) {
   if (onProgress) followedArtistsProgressListeners.add(onProgress);
 
   if (!followedArtistsCache && !force) {
@@ -272,7 +272,7 @@ async function getArtworkUrl(artworkId, preferredWidth = 640) {
   return url;
 }
 
-async function hydrateArtist(artist) { //I'm not thrilled by this function name; can we change it to something more desriptive? Maybe "getArtistDetails"?
+async function hydrateArtist(artist) {
   if (artist.source !== 'tidal') return artist;
   const response = await tidalFetch(
     `/artists/${artist.id}?countryCode=US&include=profileArt`,
@@ -281,7 +281,7 @@ async function hydrateArtist(artist) { //I'm not thrilled by this function name;
   return { ...artist, imageUrl: await getArtworkUrl(profileArtId, 640) };
 }
 
-function normalizeAlbum(resource) { //I'm also not thrilled by this name; can we change it too? And while we're at it, can we also change "resource" to something less vauge?
+function normalizeAlbum(resource) {
   const albumType = resource.attributes?.albumType ?? resource.attributes?.type;
   return {
     id: resource.id,
@@ -321,7 +321,7 @@ async function loadArtistAlbums(artistId) {
   return uniqueAlbums;
 }
 
-async function hydrateAlbumArtwork(album) { //I'm also not thrilled by this name; can we change it too? Maybe just "getAlbumArtwork?"
+async function hydrateAlbumArtwork(album) {
   if (album.source !== 'tidal') return album;
   // The artist relationship endpoint only supports `include=albums`, so albums
   // sourced that way never carry coverArt. Re-fetch the single album with
@@ -334,21 +334,21 @@ async function hydrateAlbumArtwork(album) { //I'm also not thrilled by this name
 }
 
 //Handle the paginated API response recursively (we don't know how many pages the entire response will be)
-async function getAlbumItemPages(albumId, url = null) { //Can we rename this to "getAlbumTrackPages" to match the other paginated-response function pairs?
+async function getAlbumTrackPages(albumId, url = null) {
   const requestUrl =
     url ??
     `/albums/${albumId}/relationships/items?countryCode=US&include=items`;
   const page = await tidalFetch(requestUrl);
   const nextUrl = page.links?.next;
   return nextUrl
-    ? [page, ...(await getAlbumItemPages(albumId, nextUrl))]
+    ? [page, ...(await getAlbumTrackPages(albumId, nextUrl))]
     : [page];
 }
 
 async function loadAlbumTracks(albumId) {
   if (albumTracksCache.has(albumId)) return albumTracksCache.get(albumId);
 
-  const pages = await getAlbumItemPages(albumId);
+  const pages = await getAlbumTrackPages(albumId);
   const trackTitlesById = new Map(
     pages
       .flatMap((page) => page.included ?? [])
@@ -397,15 +397,15 @@ export async function searchArtists(query, dataSource = 'mock') {
 export async function getArtistSuggestions(query, dataSource = 'mock', limit = 8) {
   if (!query.trim()) return [];
   const artists = dataSource === 'mock' ? mockArtists : await loadFollowedArtists();
-  const needle = normalizeSearchText(query.trim()); //Unless we're going to reference a haystack, can we rename this to something closer to "artistSearchStub" that is more descriptive?
+  const searchTerm = normalizeSearchText(query.trim());
   return artists
     .map((artist) => {
       const name = normalizeSearchText(artist.name);
-      if (name.startsWith(needle)) return { artist, rank: 0 };
-      if (name.includes(needle)) return { artist, rank: 1 };
+      if (name.startsWith(searchTerm)) return { artist, rank: 0 };
+      if (name.includes(searchTerm)) return { artist, rank: 1 };
       return null;
     })
-    .filter(Boolean) //What is this doing? Should we filter before we map (for performance)?
+    .filter(Boolean)
     .sort((a, b) => a.rank - b.rank || a.artist.name.localeCompare(b.artist.name))
     .slice(0, limit)
     .map(({ artist }) => artist);
@@ -421,7 +421,7 @@ export async function getNewestAlbum(artist, settings, dataSource = 'mock') {
 }
 
 export async function getNextArtist(dataSource = 'mock') {
-  if (dataSource === 'mock') await wait(); //Why are we just waiting here?
+  if (dataSource === 'mock') await wait(); // Simulate mock latency so mock mode's timing/UX matches a real Tidal fetch.
   const artists = dataSource === 'mock' ? mockArtists : await loadFollowedArtists();
   const nextId = takeNext(`artists:${dataSource}`, artists.map((artist) => artist.id));
   const artist = artists.find((candidate) => candidate.id === nextId) ?? null;
@@ -429,7 +429,7 @@ export async function getNextArtist(dataSource = 'mock') {
 }
 
 export async function getNextAlbum(artist, settings, dataSource = 'mock', currentAlbumId = null) {
-  if (dataSource === 'mock') await wait(); //Why are we just waiting here?
+  if (dataSource === 'mock') await wait(); // Simulate mock latency so mock mode's timing/UX matches a real Tidal fetch.
   const albums = dataSource === 'mock' ? artist.albums : await loadArtistAlbums(artist.id);
   const eligible = filterAlbums(albums, settings);
   const settingsKey = `${settings.includeEps}-${settings.includeLiveAlbums}`;

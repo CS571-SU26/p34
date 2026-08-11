@@ -8,7 +8,6 @@ export default function SettingsModal({ show, settings, onChange, onClose, authe
         <h2 className="h6">Album selection</h2>
         <Form.Check type="switch" id="include-eps" label="Include EPs" checked={settings.includeEps} onChange={(event) => onChange('includeEps', event.target.checked)} className="mb-3" />
         <Form.Check type="switch" id="include-live-albums" label="Include albums with “live” in the title" checked={settings.includeLiveAlbums} onChange={(event) => onChange('includeLiveAlbums', event.target.checked)} className="mb-4" />
-        {/* Can you add a default-off "include singles option?" */}
         <h2 className="h6">Appearance</h2>
         <Form.Check type="switch" id="dark-mode" label="Dark mode" checked={settings.darkMode} onChange={(event) => onChange('darkMode', event.target.checked)} className="mb-4" />
 
@@ -18,7 +17,7 @@ export default function SettingsModal({ show, settings, onChange, onClose, authe
           <option value="tidal">Real TIDAL data</option>
         </Form.Select>
         {settings.dataSource === 'tidal' && !authenticated && (
-          <Alert variant="info" className="mt-3 mb-0">Choose Log in after closing settings.</Alert> //Can we route the user to login instead of putting this alert here?
+          <Alert variant="info" className="mt-3 mb-0">Choose Log in after closing settings.</Alert>
         )}
       </Modal.Body>
       <Modal.Footer><Button variant="primary" onClick={onClose}>Done</Button></Modal.Footer>

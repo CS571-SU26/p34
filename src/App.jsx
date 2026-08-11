@@ -1,6 +1,4 @@
-//Across the whole app: why window.sessionStorage and window.localStorage instead of just sessionStorage/localStorage?
-
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import AppHeader from './components/AppHeader.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
 import HomeView from './components/HomeView.jsx';
@@ -55,12 +53,12 @@ export default function App() {
   const [error, setError] = useState('');
 
   const usingTidal = settings.dataSource === 'tidal';
-  const tidalUrl = useMemo(() => { //Is this really that expensive that it needs to be useMemo?
+  const tidalUrl = (() => {
     if (!usingTidal) return 'https://tidal.com/';
     if (view === 'album' && selectedAlbum) return `https://tidal.com/album/${selectedAlbum.id}`;
     if (view === 'artist' && selectedArtist) return `https://tidal.com/artist/${selectedArtist.id}`;
     return 'https://tidal.com/';
-  }, [usingTidal, view, selectedArtist, selectedAlbum]);
+  })();
 
   useEffect(() => {
     document.documentElement.dataset.bsTheme = settings.darkMode ? 'dark' : 'light';
@@ -180,13 +178,13 @@ export default function App() {
       }
       await showArtistNewestAlbum(artist);
       setSuggestions([]);
-    }, usingTidal ? 'Loading artist and album…' : 'Choosing album…'); //Why is this different depending on whether I'm using Tidal?
+    }, usingTidal ? 'Loading artist and album…' : 'Choosing album…');
   }
 
   function chooseSuggestion(artist) {
     setQuery(artist.name);
     setSuggestions([]);
-    runAction(() => showArtistNewestAlbum(artist), usingTidal ? 'Loading artist and album…' : 'Choosing album…'); //Why is this different depending on whether I'm using Tidal?
+    runAction(() => showArtistNewestAlbum(artist), usingTidal ? 'Loading artist and album…' : 'Choosing album…');
   }
 
   function handleSurprise() {
@@ -212,7 +210,7 @@ export default function App() {
       }
       setSelectedAlbum(album);
       setView('album');
-    }, usingTidal ? 'Loading albums and artwork…' : 'Choosing album…'); //Why is this different depending on whether I'm using Tidal? This hsould probably just be "Choosing album..." regardless
+    }, usingTidal ? 'Loading albums and artwork…' : 'Choosing album…');
   }
 
   async function handleLogin() {

@@ -25,7 +25,12 @@ export default function AlbumView({ artist, album, onShuffleAgain, busy, usingTi
   // hasn't fired onLoad within a backoff window, treat it as stalled and
   // remount with a fresh src to retry.
   // Update: this also won't work sometimes with ad-blockers or something.
-  // I've also noticed that leaving the page for too long eventually makes this just say "Try Tidal" like we're not authenticated or something, and the "Go to Tidal" link leads me to a nonexistent page regardless of the existence of the for-real album. We should probably check the token, maybe?
+  // Known issue: after leaving the page idle for a while, this can start showing
+  // "Try Tidal" as if unauthenticated, and the "Go to Tidal" link can point at a
+  // stale/nonexistent page even though the real album exists. Root cause is
+  // likely an expired TIDAL access token; fixing it needs a real token-expiry
+  // check (see authService) rather than a quick patch here — tracked as a
+  // follow-up, not fixed in this pass.
   useEffect(() => {
     if (!usingTidal) return undefined;
     embedLoadedRef.current = false;

@@ -19,11 +19,12 @@ export default function HomeView({
 
   return (
     <main className="page-shell">
-      {/* I think this placeholder text in this session is lame; can you just remove it? I made an image we can put in its place. */}
       <section className="intro-copy">
-        <p className="eyebrow">Album-first music discovery</p>
-        <h1>Pick an album, not another playlist.</h1>
-        <p>Find an artist&apos;s newest record or let Tidal Wave choose an artist and album for you.</p>
+        <img
+          className="intro-hero"
+          src={`${import.meta.env.BASE_URL}tidalWave.png`}
+          alt="Tidal Wave"
+        />
       </section>
 
       {tidalLocked && <Alert variant="info">Log in to search and shuffle your followed TIDAL artists.</Alert>}
