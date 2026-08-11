@@ -10,6 +10,11 @@ export default function AlbumView({ artist, album, onShuffleAgain, busy, usingTi
   const [embedAttempt, setEmbedAttempt] = useState(0);
   const [embedStalled, setEmbedStalled] = useState(false);
   const embedLoadedRef = useRef(false);
+  const mainRef = useRef(null);
+
+  useEffect(() => {
+    mainRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     setTracksOpen(false);
@@ -46,7 +51,7 @@ export default function AlbumView({ artist, album, onShuffleAgain, busy, usingTi
   }
 
   return (
-    <main className="page-shell album-page">
+    <main className="page-shell album-page" ref={mainRef} tabIndex={-1}>
       <div className="album-layout">
         <div>
           <img className="album-art shadow-sm" src={album.artworkUrl} alt={`${album.title} album artwork`} />

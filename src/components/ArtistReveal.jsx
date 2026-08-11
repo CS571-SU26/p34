@@ -1,8 +1,15 @@
+import { useEffect, useRef } from 'react';
 import { Button, Card } from 'react-bootstrap';
 
 export default function ArtistReveal({ artist, onTryAgain, onContinue, busy, usingTidal }) {
+  const mainRef = useRef(null);
+
+  useEffect(() => {
+    mainRef.current?.focus();
+  }, []);
+
   return (
-    <main className="page-shell">
+    <main className="page-shell" ref={mainRef} tabIndex={-1}>
       <p className="eyebrow">You&apos;ll be listening to…</p>
       <Card className="reveal-card shadow-sm overflow-hidden">
         <img className="artist-image" src={artist.imageUrl} alt="" />

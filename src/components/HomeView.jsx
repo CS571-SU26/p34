@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Card, Form, InputGroup, ListGroup, Spinner } from 'react-bootstrap';
 
 export default function HomeView({
@@ -16,9 +17,40 @@ export default function HomeView({
 }) {
   const tidalLocked = dataSource === 'tidal' && !authenticated;
   const controlsDisabled = busy || tidalLocked || artistsLoading;
+  const mainRef = useRef(null);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
+  const visibleSuggestions = suggestionsDismissed ? [] : suggestions;
+
+  useEffect(() => {
+    mainRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    setHighlightedIndex(-1);
+    setSuggestionsDismissed(false);
+  }, [suggestions]);
+
+  function handleQueryKeyDown(event) {
+    if (!visibleSuggestions.length) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setHighlightedIndex((index) => (index + 1) % visibleSuggestions.length);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setHighlightedIndex((index) => (index - 1 + visibleSuggestions.length) % visibleSuggestions.length);
+    } else if (event.key === 'Enter' && highlightedIndex >= 0) {
+      event.preventDefault();
+      onChooseSuggestion(visibleSuggestions[highlightedIndex]);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setSuggestionsDismissed(true);
+    }
+  }
 
   return (
-    <main className="page-shell">
+    <main className="page-shell" ref={mainRef} tabIndex={-1}>
+      <h1 className="visually-hidden">Tidal Wave — discover an album from an artist you follow</h1>
       <section className="intro-copy">
         <img
           className="intro-hero"
@@ -33,7 +65,7 @@ export default function HomeView({
           <Spinner size="sm" /> {loadingMessage}
         </Alert>
       )}
-      {error && <Alert variant="danger">{error}</Alert>}
+      {error && <Alert variant="danger" role="alert">{error}</Alert>}
 
       <Card className="action-card shadow-sm">
         <Card.Body>
@@ -47,25 +79,31 @@ export default function HomeView({
                   id="artist-search"
                   value={query}
                   onChange={(event) => onQueryChange(event.target.value)}
+                  onKeyDown={handleQueryKeyDown}
                   placeholder="Enter an artist name"
                   autoComplete="off"
                   role="combobox"
                   aria-autocomplete="list"
-                  aria-expanded={suggestions.length > 0}
+                  aria-haspopup="listbox"
+                  aria-expanded={visibleSuggestions.length > 0}
                   aria-controls="artist-suggestions"
+                  aria-activedescendant={highlightedIndex >= 0 ? `artist-option-${visibleSuggestions[highlightedIndex].id}` : undefined}
                   disabled={controlsDisabled}
                 />
                 <Button type="submit" disabled={controlsDisabled || !query.trim()}>
                   {busy ? <Spinner size="sm" /> : 'Go'}
                 </Button>
               </InputGroup>
-              {suggestions.length > 0 && (
+              {visibleSuggestions.length > 0 && (
                 <ListGroup id="artist-suggestions" className="suggestions shadow" role="listbox">
-                  {suggestions.map((artist) => (
+                  {visibleSuggestions.map((artist, index) => (
                     <ListGroup.Item
                       action
                       key={artist.id}
+                      id={`artist-option-${artist.id}`}
                       role="option"
+                      active={index === highlightedIndex}
+                      aria-selected={index === highlightedIndex}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         onChooseSuggestion(artist);

@@ -30,6 +30,10 @@ button, input { font: inherit; }
 .app-header { background: var(--header-bg); backdrop-filter: blur(10px); }
 .brand-button { border: 0; background: transparent; color: inherit; font-weight: 750; letter-spacing: -0.03em; }
 .page-shell { width: min(100% - 2rem, 960px); margin: 0 auto; padding: clamp(2.5rem, 7vw, 5rem) 0; }
+/* Each view's <main> is focused programmatically on mount so screen reader and
+   keyboard users are oriented after switching views; it isn't part of the tab
+   order (tabIndex={-1}), so it doesn't need a visible focus ring of its own. */
+.page-shell:focus { outline: none; }
 .intro-copy { max-width: 720px; margin-bottom: 1.25rem; }
 .intro-copy h1 { font-size: clamp(2.2rem, 6vw, 4.7rem); line-height: 0.98; letter-spacing: -0.055em; }
 .intro-copy p:last-child { max-width: 640px; color: var(--muted); font-size: 1.1rem; }
