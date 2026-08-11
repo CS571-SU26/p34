@@ -1,0 +1,8 @@
+To be honest, AI generated nearly 100% of this code.
+I played around with the API calls then fed those to ChatGPT, and I also set up/registered the Tidal developer client app, but pretty much everything else is direct from it
+AI was especially instrumental in getting the GitHub Pages stuff squared away; I'd have floundered for *far* longer than I'm comfortable admitting without it.
+
+My role was been prototyper, tester, guide, and code reviewer.
+I told AI how I wanted the pages to look (by way of an export from Figma) and what I wanted each thing to do, but I also guided it in the programmatic choices to make (e.g. use react-bootstrap, write code declaratively, etc.) to make my life easier when reviewing the code.
+I also did my best to break it and suggested fixes and other tweaks as I went.
+Finally, I went through the code line-by-line and suggested writing some parts differently, or adding other features I thought of while going along.
